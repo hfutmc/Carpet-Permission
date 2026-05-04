@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "whisperlyric.carpetpermissions.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "CommandHelperMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
