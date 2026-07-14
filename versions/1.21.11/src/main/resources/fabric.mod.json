@@ -18,8 +18,7 @@
     ]
   },
   "mixins": [
-    "carpet-permissions.mixins.json",
-    "carpet-permissions.client.mixins.json"
+    "carpet-permissions.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",

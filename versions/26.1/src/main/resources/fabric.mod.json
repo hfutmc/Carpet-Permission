@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "carpet-permissions",
+  "version": "${version}",
+  "name": "Carpet Permissions",
+  "description": "Adds permission checks to Carpet commands using fabric-permissions-api",
+  "authors": ["WhisperLyric"],
+  "contact": {
+    "homepage": "https://github.com/Whisperlyric/Carpet-Permission",
+    "sources": "https://github.com/Whisperlyric/Carpet-Permission",
+    "issues": "https://github.com/Whisperlyric/Carpet-Permission/issues"
+  },
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "dev.whisperlyric.carpetpermissions.CarpetPermissions"
+    ]
+  },
+  "mixins": [
+    "carpet-permissions.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_range}",
+    "java": ">=${java_version}",
+    "fabric-api": "*",
+    "carpet": "*"
+  },
+  "suggests": {
+    "fabric-permissions-api": ">=0.7.0"
+  }
+}

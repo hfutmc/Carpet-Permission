@@ -24,13 +24,37 @@ public class CommandHelperMixin {
         cancellable = true
     )
     private static void injectPermissionCheck(CommandSourceStack source, Object commandLevel, CallbackInfoReturnable<Boolean> cir) {
+        // Non-player sources: let Carpet handle it normally
         if (!source.isPlayer()) {
             return;
         }
 
+        // When commandLevel is a literal true/false, respect Carpet's intent:
+        //   true  → Carpet wants the command always available → fall through (return true)
+        //   false → Carpet wants the command disabled → fall through (return false)
+        //   We only intercept level-based checks (ops, 0-4) where permission nodes apply.
+        if (commandLevel instanceof Boolean) {
+            return;
+        }
+        String levelStr = commandLevel.toString();
+        if ("true".equals(levelStr) || "false".equals(levelStr)) {
+            return;
+        }
+
+        // Derive the permission node from the calling Carpet command class.
+        // Stack trace layout:
+        //   [0] = java.lang.Thread.getStackTrace()
+        //   [1] = this mixin method
+        //   [2] = CommandHelper.canUseCommand() (original, redirected by Mixin)
+        //   [3] = the Carpet command class that called canUseCommand
         String permissionNode;
         try {
-            permissionNode = Thread.currentThread().getStackTrace()[3].getClassName();
+            StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+            if (stack.length < 4) {
+                LOGGER.warn("[carpet-permissions] Stack trace too short to derive permission node");
+                return;
+            }
+            permissionNode = stack[3].getClassName();
         } catch (Exception e) {
             LOGGER.warn("[carpet-permissions] Failed to derive permission node from stack trace", e);
             return;
@@ -52,14 +76,16 @@ public class CommandHelperMixin {
             return;
         }
 
-        if (allowed) {
-            LOGGER.info("[carpet-permissions] ALLOWED  | {} | node='{}'",
-                    player.getName().getString(), permissionNode);
-        } else {
-            LOGGER.info("[carpet-permissions] DENIED   | {} | node='{}' | Grant in LuckPerms: /lp user {} permission set {} true",
+        LOGGER.debug("[carpet-permissions] {} | {} | node='{}' | level='{}'",
+                allowed ? "ALLOWED" : "DENIED",
+                player.getName().getString(), permissionNode, levelStr);
+
+        if (!allowed) {
+            LOGGER.info("[carpet-permissions] DENIED | {} | node='{}' | Grant: /lp user {} permission set {} true",
                     player.getName().getString(), permissionNode,
                     player.getName().getString(), permissionNode);
         }
+
         cir.setReturnValue(allowed);
     }
 }

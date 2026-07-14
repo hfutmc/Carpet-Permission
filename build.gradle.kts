@@ -5,5 +5,5 @@ plugins {
 }
 
 tasks.register("buildAll") {
-    dependsOn(subprojects.map { it.tasks.named("build") })
+    dependsOn(subprojects.filter { it.childProjects.isEmpty() }.map { it.tasks.named("build") })
 }
