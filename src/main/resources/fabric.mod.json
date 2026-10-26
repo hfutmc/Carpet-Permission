@@ -28,6 +28,6 @@
     "carpet": "*"
   },
   "suggests": {
-    "fabric-permissions-api": ">=0.6.1"
+    "fabric-permissions-api": "${permissions_api_dependency}"
   }
 }

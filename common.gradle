@@ -1,0 +1,140 @@
+final int mcVersion = project.mcVersion
+final boolean unobfuscated = mcVersion >= 26_00_00
+
+apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap'
+apply plugin: 'com.replaymod.preprocess'
+
+repositories {
+	mavenCentral()
+	exclusiveContent {
+		forRepository {
+			maven {
+				url = 'https://api.modrinth.com/maven'
+			}
+		}
+		filter {
+			includeGroup 'maven.modrinth'
+		}
+	}
+	maven {
+		url = 'https://masa.dy.fi/maven'
+	}
+	maven {
+		url = 'https://jitpack.io'
+	}
+}
+
+// https://github.com/FabricMC/fabric-loader/issues/783
+configurations {
+	modRuntimeOnly.exclude group: 'net.fabricmc', module: 'fabric-loader'
+}
+
+dependencies {
+	def processDependency = { dep ->
+		// https://github.com/FabricMC/fabric-loader/issues/783
+		if (dep instanceof ModuleDependency && !(dep.group == 'net.fabricmc' && dep.name == 'fabric-loader')) {
+			dep.exclude group: 'net.fabricmc', module: 'fabric-loader'
+		}
+		return dep
+	}
+	def autoImplementation = { Object... args -> processDependency(unobfuscated ? implementation(*args) : modImplementation(*args)) }
+
+	// Minecraft
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	if (!unobfuscated) {
+		mappings loom.layered() {
+			officialMojangMappings()
+		}
+	}
+
+	autoImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	autoImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// fabric-permissions-api
+	autoImplementation "maven.modrinth:fabric-permissions-api:${project.permissions_api_version}"
+
+	// Carpet: modrinth file id, masa maven version, or jitpack coordinate (see versions/*/gradle.properties)
+	if (project.carpet_core_version.startsWith('maven.modrinth')) {
+		autoImplementation project.carpet_core_version
+	} else if (project.carpet_core_version.matches('^com.github.[a-zA-Z0-9_-]+:fabric-carpet:[a-z0-9._+-]+$')) {
+		autoImplementation project.carpet_core_version // jitpack
+	} else {
+		autoImplementation("carpet:fabric-carpet:${project.carpet_core_version}") {
+			exclude group: 'net.fabricmc', module: 'fabric-api'
+		}
+	}
+}
+
+String MIXIN_CONFIG_PATH = 'carpet-permissions.mixins.json'
+JavaVersion JAVA_COMPATIBILITY = JavaVersion.VERSION_21
+if (unobfuscated) JAVA_COMPATIBILITY = JavaVersion.VERSION_25
+
+JavaVersion MIXIN_COMPATIBILITY_LEVEL = JAVA_COMPATIBILITY
+
+loom {
+	mixin {
+		defaultRefmapName.set("carpet-permissions.refmap.json")
+	}
+	runConfigs.configureEach {
+		// to make sure it generates all "Minecraft Client (:subproject_name)" applications
+		ideConfigGenerated = true
+		runDir '../../run'
+	}
+}
+
+group = project.maven_group
+base.archivesName = project.archives_base_name
+version = project.mod_version + '-mc' + project.minecraft_version
+
+// See https://youtrack.jetbrains.com/issue/IDEA-296490
+// if IDEA complains about "Cannot resolve resource filtering of MatchingCopyAction" and you want to know why
+processResources {
+	inputs.property "id", project.mod_id
+	inputs.property "name", project.mod_name
+	inputs.property "version", project.version
+	inputs.property "loader_version", project.loader_version
+	inputs.property "java_version", project.java_version
+	inputs.property "minecraft_range", project.minecraft_range
+	inputs.property "permissions_api_dependency", project.permissions_api_dependency
+
+	filesMatching("fabric.mod.json") {
+		def valueMap = [
+				"id": project.mod_id,
+				"name": project.mod_name,
+				"version": project.version,
+				"loader_version": project.loader_version,
+				"java_version": project.java_version,
+				"minecraft_range": project.minecraft_range,
+				"permissions_api_dependency": project.permissions_api_dependency,
+		]
+		expand valueMap
+	}
+
+	filesMatching(MIXIN_CONFIG_PATH) {
+		filter { s -> s.replace('{{COMPATIBILITY_LEVEL}}', "JAVA_${MIXIN_COMPATIBILITY_LEVEL.ordinal() + 1}") }
+	}
+}
+
+// ensure that the encoding is set to UTF-8, no matter what the system default is
+// this fixes some edge cases with special characters not displaying correctly
+// see http://yodaconditions.net/blog/fix-for-java-encoding-problems-with-gradle.html
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = "UTF-8"
+	options.compilerArgs << "-Xlint:deprecation" << "-Xlint:unchecked"
+}
+
+java {
+	sourceCompatibility = JAVA_COMPATIBILITY
+	targetCompatibility = JAVA_COMPATIBILITY
+
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+}
+
+jar {
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}" }
+	}
+}

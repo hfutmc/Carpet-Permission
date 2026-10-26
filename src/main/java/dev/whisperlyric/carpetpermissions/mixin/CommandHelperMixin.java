@@ -21,8 +21,11 @@ public class CommandHelperMixin {
     @Inject(
         method = "canUseCommand",
         at = @At("HEAD"),
-        cancellable = true,
-        remap = false
+        cancellable = true
+        //#if MC >= 260000
+        //$$ ,
+        //$$ remap = false
+        //#endif
     )
     private static void injectPermissionCheck(CommandSourceStack source, Object commandLevel, CallbackInfoReturnable<Boolean> cir) {
         // Non-player sources: let Carpet handle it normally
