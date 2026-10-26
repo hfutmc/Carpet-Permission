@@ -82,9 +82,16 @@ loom {
 	}
 }
 
+// CI build number: '+build.N' when built on GitHub Actions, '-SNAPSHOT' for local builds
+// (BUILD_ID/BUILD_RELEASE are set by the workflow, cf. .github/workflows/build.yml)
+String modVersionSuffix = ''
+if (System.getenv("BUILD_RELEASE") != "true") {
+	String buildNumber = System.getenv("BUILD_ID")
+	modVersionSuffix += buildNumber != null ? ('+build.' + buildNumber) : '-SNAPSHOT'
+}
 group = project.maven_group
 base.archivesName = project.archives_base_name
-version = project.mod_version + '-mc' + project.minecraft_version
+version = project.mod_version + modVersionSuffix + '-mc' + project.minecraft_version
 
 // See https://youtrack.jetbrains.com/issue/IDEA-296490
 // if IDEA complains about "Cannot resolve resource filtering of MatchingCopyAction" and you want to know why
